@@ -13,7 +13,6 @@ Contracts in `test` folder are taken from [OpenZeppelin](https://github.com/Open
 - [Requirements](#requirements)
 - [Install](#install)
 - [Usage](#usage)
-- [TODOs](#todos)
 - [Maintainers](#maintainers)
 
 ## Requirements
