@@ -1,8 +1,8 @@
-# Slither - ERC20
+# Slither scripts
 
 Detect [ERC20](https://github.com/ethereum/EIPs/blob/master/EIPS/eip-20.md) interface in any Solidity smart contract using [Slither](https://github.com/trailofbits/slither).
 
-The script currently looks for:
+The `erc20.py` script currently looks for:
 - Function signatures and visibility
 - Event signatures
 - Getters for public variables 
@@ -22,7 +22,7 @@ Contracts in `test` folder are taken from [OpenZeppelin](https://github.com/Open
 
 ## Install
 1. Clone this repository
-2. `cd slither-erc20`
+2. `cd slither-scripts`
 3. `pip3 install -r requirements.txt`
 
 ## Usage
