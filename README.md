@@ -5,7 +5,7 @@ Detect [ERC20](https://github.com/ethereum/EIPs/blob/master/EIPS/eip-20.md) inte
 The `erc20.py` script currently looks for:
 - Function signatures and visibility
 - Event signatures
-- Getters for public variables 
+- Public getters (as visible functions or public state variables)
 
 Contracts in `test` folder are taken from [OpenZeppelin](https://github.com/OpenZeppelin/openzeppelin-solidity)
 
