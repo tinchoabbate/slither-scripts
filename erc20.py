@@ -81,6 +81,9 @@ def run(filename, contract_name):
 
     # Get an instance of the contract to be analyzed
     contract = slither.get_contract_from_name(contract_name)
+    if not contract:
+        print(f"Contract {contract_name} not found")
+        exit(-1)
 
     # Obtain visible functions
     visible_functions = get_visible_functions(contract.functions)
