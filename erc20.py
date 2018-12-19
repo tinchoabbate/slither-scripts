@@ -7,6 +7,11 @@ from constants import (
     ERC20_FX_SIGNATURES, ERC20_GETTERS,
     ERC20_EVENT_BY_FUNCTION
 )
+from log import (
+    log_matches,
+    log_event_per_function,
+    log_modifiers_per_function
+)
 
 
 def is_visible(function):
@@ -95,8 +100,31 @@ def verify_erc20_event_calls(function_matches):
         Generator of tuples (Signature, bool)
     """
     for match in function_matches:
-        if match[1] and ERC20_EVENT_BY_FUNCTION[match[0].name]:
-            yield (match[0], emits_event(match[1], ERC20_EVENT_BY_FUNCTION[match[1].name]))
+        # Check if function was found and function is expected to emit event
+        function = match[1]
+        if function and ERC20_EVENT_BY_FUNCTION[match[0].name]:
+            yield (match[0], emits_event(function, ERC20_EVENT_BY_FUNCTION[function.name]))
+
+
+def verify_custom_modifiers(function_matches):
+    """
+    Checks if ERC20 functions found have any custom modifier
+
+    Parameters
+    ----------
+    function_matches : list
+        List of tuples (Signature, slither.core.declarations.Function or None)
+
+    Returns
+    -------
+    generator
+        Generator of tuples (Signature, list(slither.core.declarations.Modifier) or None)
+    """
+    for match in function_matches:
+        # Check whether function was found and has modifiers
+        function = match[1]
+        if function and function.modifiers:
+            yield (match[0], function.modifiers)           
 
 
 def name_and_return_match(variable, signature):
@@ -131,32 +159,6 @@ def get_visible_functions(functions):
     list
     """
     return [f for f in functions if is_visible(f)]
-
-
-def log_matches(matches):
-    """
-    Parameters
-    ----------
-    matches : list
-        List of tuples (Signature, bool)
-    """
-    for match in matches:
-        mark = '\u2713' if match[1] else 'x'
-        print(f"[{mark}] {match[0].to_string()}")
-
-
-def log_event_per_function(matches):
-    """
-    Parameters
-    ----------
-    matches : list
-        List of tuples (Signature, bool)
-    """
-    for match in matches:
-        function_name = match[0].name
-        expected_event = ERC20_EVENT_BY_FUNCTION[function_name].to_string()
-        mark = '\u2713' if match[1] else 'x'
-        print(f"[{mark}] {function_name} must emit {expected_event}")
 
 
 def is_event_call(obj):
@@ -230,15 +232,20 @@ def run(filename, contract_name):
     function_matches = verify_signatures(visible_functions, ERC20_FX_SIGNATURES)
     event_definition_matches = verify_signatures(contract.events, ERC20_EVENT_SIGNATURES)
 
-    functions_firing_events = verify_erc20_event_calls(function_matches)
-
-    print("== ERC20 functions ==")
+    print("== ERC20 functions definition ==")
     log_matches(function_matches)
 
-    print("\n== ERC20 events ==")
-    log_matches(event_definition_matches)
+    print("\n== Custom modifiers ==")
+    log_modifiers_per_function(
+        verify_custom_modifiers(function_matches)
+    )
 
-    log_event_per_function(functions_firing_events)
+    print("\n== ERC20 events ==")
+    log_matches(event_definition_matches, log_return=False)
+    log_event_per_function(
+        verify_erc20_event_calls(function_matches),
+        ERC20_EVENT_BY_FUNCTION
+    )
 
     getters_matches = verify_getters(
         contract.state_variables,
