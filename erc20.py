@@ -118,7 +118,7 @@ def verify_custom_modifiers(function_matches):
     Returns
     -------
     generator
-        Generator of tuples (Signature, list(slither.core.declarations.Modifier) or None)
+        Generator of tuples (Signature, list(slither.core.declarations.Modifier))
     """
     for match in function_matches:
         # Check whether function was found and has modifiers
