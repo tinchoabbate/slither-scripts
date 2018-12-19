@@ -5,7 +5,7 @@ Detect [ERC20](https://github.com/ethereum/EIPs/blob/master/EIPS/eip-20.md) inte
 The `erc20.py` script currently looks for:
 - Function signatures definition and visibility
 - Event signatures definition
-- Function calls emiting the expected events:
+- Function calls emitting the expected events:
     - `transfer` must emit `Transfer (address, address, uint256)`
     - `approve` must emit `Approval (address, address, uint256)`
     - `transferFrom` must emit `Transfer (address, address, uint256)`
