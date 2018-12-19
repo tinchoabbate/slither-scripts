@@ -1,21 +1,23 @@
+from signature import Signature
+
 ERC20_FX_SIGNATURES = [
-    {"name": "transfer", "args": ["address", "uint256"], "returns": ["bool"]},
-    {"name": "approve", "args": ["address", "uint256"], "returns": ["bool"]},
-    {"name": "transferFrom", "args": ["address", "address", "uint256"], "returns": ["bool"]},
-    {"name": "allowance", "args": ["address", "address"], "returns": ["uint256"]},
-    {"name": "balanceOf", "args": ["address"], "returns": ["uint256"]},
+    Signature("transfer", ["address", "uint256"], ["bool"]),
+    Signature("approve", ["address", "uint256"], ["bool"]),
+    Signature("transferFrom", ["address", "address", "uint256"], ["bool"]),
+    Signature("allowance", ["address", "address"], ["uint256"]),
+    Signature("balanceOf", ["address"], ["uint256"]),
 ]
 
 ERC20_EVENT_SIGNATURES = [
-    {"name": "Transfer", "args": ["address", "address", "uint256"]},
-    {"name": "Approval", "args": ["address", "address", "uint256"]},
+    Signature("Transfer", ["address", "address", "uint256"]),
+    Signature("Approval", ["address", "address", "uint256"]),
 ]
 
 ERC20_GETTERS = [
-    {"name": "totalSupply", "args": [], "returns": ["uint256"]},
-    {"name": "decimals", "args": [], "returns": ["uint8"]},
-    {"name": "symbol", "args": [], "returns": ["string"]},
-    {"name": "name", "args": [], "returns": ["string"]},
+    Signature("totalSupply", [], ["uint256"]),
+    Signature("decimals", [], ["uint8"]),
+    Signature("symbol", [], ["string"]),
+    Signature("name", [], ["string"]),
 ]
 
 ERC20_EVENT_BY_FUNCTION = {
