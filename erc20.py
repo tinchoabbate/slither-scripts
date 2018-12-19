@@ -1,60 +1,62 @@
 #!/usr/bin/python3
 import sys
 from slither.slither import Slither
-from constants import ERC20_EVENT_SIGNATURES, ERC20_FX_SIGNATURES, ERC20_GETTERS
+from slither.slithir.operations.event_call import EventCall
+from constants import ERC20_EVENT_SIGNATURES, ERC20_FX_SIGNATURES, ERC20_GETTERS, ERC20_EVENT_BY_FUNCTION
 
 
 def is_visible(function):
+    """Returns True if function is public or external"""
     return is_public(function) or is_external(function)
 
 
-def is_external(e):
-    return e.visibility == "external"
+def is_external(f):
+    """Returns True if function's visibility is external"""
+    return f.visibility == "external"
 
 
 def is_public(e):
+    """Returns True if the element's visibility is public"""
     return e.visibility == "public"
+
+
+def dict_to_tuple(dic):
+    """Returns a tuple containing the values of the given dict"""
+    return tuple(dic.values())
 
 
 def find_match(elements, signature):
     """
-    Returns True if at least one element's signature
-    matches the expected signature
+    Returns the element (Function or Event) that matches the given signature.
+    None otherwise.
     """
-    return any(e.signature == signature for e in elements)
+    return next((e for e in elements if e.signature == dict_to_tuple(signature)), None)
 
 
 def verify_signatures(elements, expected_signatures):
     """
-    Compares a list of elements and expected signatures.
-    Returns a list containing the results of the comparison.
+    Compares a list of elements (functions or events) and expected signatures.
+    Returns a list of tuples containing the results of the comparison such as:
+    (signature dict, matching object)
     """
     return [(sig, find_match(elements, sig)) for sig in expected_signatures]
 
 
-def get_return_type(signature):
-    """Returns the first return type of a signature"""
-    return signature[2][0]
-
-
 def name_and_return_match(variable, signature):
-    return (variable.name == signature[0] and
-            str(variable.type) == get_return_type(signature))
+    return (variable.name == signature["name"] and
+            str(variable.type) == signature["returns"][0])
 
 
 def verify_getters(state_variables, functions, expected_getters):
-    getters = []
     for getter in expected_getters:
         # Check in state variables. If none is found, check in functions.
         if (
             any(name_and_return_match(v, getter) and is_public(v) for v in state_variables) or
             find_match(functions, getter)
         ):
-            getters.append((getter, True))
+            yield (getter, True)
         else:
-            getters.append((getter, False))
-
-    return getters
+            yield (getter, False)
 
 
 def get_visible_functions(functions):
@@ -62,17 +64,61 @@ def get_visible_functions(functions):
     return [f for f in functions if is_visible(f)]
 
 
-def signature_to_string(signature):
-    result = f"{signature[0]} ({', '.join(signature[1])})"
-    if len(signature) == 3:
-        result = f"{result} -> ({', '.join(signature[2])})"
+def signature_to_string(signature, print_return=True):
+    result = f"{signature['name']} ({', '.join(signature['args'])})"    
+    if len(signature) == 3 and print_return:
+        result = f"{result} -> ({', '.join(signature['returns'])})"    
     return result
 
 
-def log_matches(matches):
+def log_matches(matches, print_events=False):
     for match in matches:
-        marker = '\u2713' if match[1] else 'x'
-        print(f"[{marker}] {signature_to_string(match[0])}")
+        mark = '\u2713' if match[1] else 'x'
+        print(f"[{mark}] {signature_to_string(match[0])}")
+
+
+def log_event_per_function(matches):
+    for match in matches:
+        function_name = match[0]["name"]
+        expected_event = signature_to_string(ERC20_EVENT_BY_FUNCTION[function_name])
+        mark = '\u2713' if match[1] else 'x'
+        print(f"[{mark}] {function_name} must emit {expected_event}")
+
+
+def is_event_call(ir):
+    return isinstance(ir, EventCall)
+
+
+def get_events(function):
+    """Returns a generator to iterate over the events emitted by the function"""
+    for node in getattr(function, 'nodes', []):
+        for ir in node.irs:
+            if is_event_call(ir):
+                yield ir
+
+
+def emits_event(function, expected_event):
+    """Returns True if the function (or internal calls) emits the given event. False otherwise."""
+    for event in get_events(function):
+        if (
+            event.name == expected_event["name"] and 
+            all(str(arg.type) == expected_event["args"][i] for i, arg in enumerate(event.arguments))
+        ):
+            return True
+    
+    # Event is not fired in function, so check internal calls to other functions
+    if any(emits_event(f, expected_event) for f in getattr(function, 'internal_calls', [])):
+        return True
+
+    # Event is not fired in function nor in internal calls
+    return False
+
+
+def verify_erc20_event_calls(function_matches):
+    """Returns a generator"""
+    for match in function_matches:
+        if match[1] and ERC20_EVENT_BY_FUNCTION[match[0]["name"]]:
+            yield (match[0], emits_event(match[1], ERC20_EVENT_BY_FUNCTION[match[1].name]))
 
 
 def run(filename, contract_name):
@@ -90,13 +136,17 @@ def run(filename, contract_name):
 
     # Check signature matches for functions and events
     function_matches = verify_signatures(visible_functions, ERC20_FX_SIGNATURES)
-    event_matches = verify_signatures(contract.events, ERC20_EVENT_SIGNATURES)
+    event_definition_matches = verify_signatures(contract.events, ERC20_EVENT_SIGNATURES)
+    
+    functions_firing_events = verify_erc20_event_calls(function_matches)
 
     print("== ERC20 functions ==")
     log_matches(function_matches)
     
     print("\n== ERC20 events ==")
-    log_matches(event_matches)
+    log_matches(event_definition_matches)
+
+    log_event_per_function(functions_firing_events)
 
     getters_matches = verify_getters(
         contract.state_variables,
