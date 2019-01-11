@@ -133,7 +133,7 @@ def name_and_return_match(variable, signature):
     
     Parameters
     ----------
-    variable : slither.solc_parsing.variables.state_variable.StateVariableSolc
+    variable: slither.solc_parsing.variables.state_variable.StateVariableSolc
 
     signature : Signature
 
@@ -213,6 +213,14 @@ def emits_event(function, expected_event):
     return False
 
 
+def approve_checks_balance(contract):
+    # Get approve signature, removing all whitespaces
+    approve_signature = ERC20_FX_SIGNATURES[1].to_string(with_return=False).replace(' ', '')
+    function = contract.get_function_from_signature(approve_signature)
+    if function:
+        pass
+
+
 def run(filename, contract_name):
     """Executes script"""
 
@@ -239,6 +247,8 @@ def run(filename, contract_name):
     log_modifiers_per_function(
         verify_custom_modifiers(function_matches)
     )
+
+    approve_checks_balance(contract)
 
     print("\n== ERC20 events ==")
     log_matches(event_definition_matches, log_return=False)

@@ -93,6 +93,7 @@ contract ERC20 is IERC20 {
      */
     function approve(address spender, uint256 value) public returns (bool) {
         require(spender != address(0));
+        require (_balances[msg.sender] >= value);
 
         _allowed[msg.sender][spender] = value;
         emit Approval(msg.sender, spender, value);
