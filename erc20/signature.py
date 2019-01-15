@@ -4,11 +4,11 @@ class Signature:
         self.args = args
         self.returns = returns
     
-    def to_string(self, with_return):
+    def to_string(self, with_return, with_spaces=True):
         result = f"{self.name} ({', '.join(self.args)})"    
         if len(self.returns) and with_return:
-            result = f"{result} -> ({', '.join(self.returns)})"    
-        return result
+            result = f"{result} -> ({', '.join(self.returns)})"
+        return result if with_spaces else result.replace(' ', '')
 
     def __eq__(self, other):
         if isinstance(other, tuple):

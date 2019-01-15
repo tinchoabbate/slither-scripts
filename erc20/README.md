@@ -12,6 +12,7 @@ The `erc20.py` script currently looks for:
     - `transfer` and `transferFrom` must emit `Transfer (address, address, uint256)`
     - `approve` must emit `Approval (address, address, uint256)`
     - `increaseAllowance` and `decreaseAllowance` should emit `Approval (address, address, uint256)`
+- [Non-standard balance checks](https://github.com/sec-bit/awesome-buggy-erc20-tokens/blob/master/ERC20_token_issue_list.md#a19-approve-with-balance-verify) in `approve` function
 
 Contracts in `test` folder are taken from [OpenZeppelin](https://github.com/OpenZeppelin/openzeppelin-solidity)
 
@@ -49,6 +50,9 @@ $ python erc20.py test/ERC20.sol ERC20
 [✓] decreaseAllowance (address, uint256) -> (bool)
 [✓] increaseAllowance emits Approval (address, address, uint256)
 [✓] decreaseAllowance emits Approval (address, address, uint256)
+
+== Balance check in approve function ==
+[x] approve function may be checking for sender's balance
 ~~~
 
 ## Limitations

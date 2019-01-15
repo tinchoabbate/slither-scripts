@@ -1,7 +1,13 @@
 #!/usr/bin/python3
 import sys
+import collections
 from slither.slither import Slither
 from slither.slithir.operations.event_call import EventCall
+from slither.slithir.operations.index import Index as IndexOperation
+from slither.slithir.operations.binary import Binary as BinaryOperation
+from slither.slithir.operations.solidity_call import SolidityCall as SolidityCallOperation
+from slither.solc_parsing.variables.state_variable import StateVariableSolc
+from slither.core.solidity_types.mapping_type import MappingType
 from constants import (
     ERC20_EVENT_SIGNATURES,
     ERC20_FX_SIGNATURES,
@@ -272,6 +278,47 @@ def run(filename, contract_name):
         must=False
     )
 
+    
+    print("\n== Balance check in approve function ==")
+    approve_signature = ERC20_FX_SIGNATURES[1].to_string(with_return=False, with_spaces=False)
+    approve_function = contract.get_function_from_signature(approve_signature)
+    if any(checks_sender_balance(node) for node in approve_function.nodes):
+        # TODO: move this print to logging module        
+        print("[x] approve function may be checking for sender's balance")
+        
+
+def local_is_sender(local_variable):
+    if local_variable.name == 'msg.sender':
+        return True
+    else:
+        try:
+            # Recursively check for msg.sender assignment
+            return local_is_sender(local_variable.expression.value)
+        except AttributeError:
+            return False
+
+
+def checks_sender_balance(node):
+    # First check we're in a require clause
+    if any(call.name == 'require(bool)' for call in node.internal_calls):
+
+        # Now check that the operations done are the expected
+        expected_operations = {IndexOperation, BinaryOperation, SolidityCallOperation}
+        if len(node.irs) == len(expected_operations) and {type(ir) for ir in node.irs} == expected_operations:
+            for ir in node.irs:
+                # Verify that a state mapping is being accessed with msg.sender index
+                if isinstance(ir, IndexOperation):
+                    reading_mapping_in_state = (
+                        isinstance(ir.variable_left, StateVariableSolc) and
+                        isinstance(ir.variable_left.type, MappingType)
+                    )
+                    index_is_sender = local_is_sender(ir.variable_right)
+                    if reading_mapping_in_state and index_is_sender:
+                        return True                
+
+    return False
+
+
 if __name__ == "__main__":
     if len(sys.argv) != 3:
         print('Usage: python erc20.py <contract.sol> <contract-name>')
@@ -279,4 +326,5 @@ if __name__ == "__main__":
 
     FILE_NAME = sys.argv[1]
     CONTRACT_NAME = sys.argv[2]
+
     run(FILE_NAME, CONTRACT_NAME)
