@@ -4,8 +4,11 @@ from slither.slither import Slither
 from slither.slithir.operations.event_call import EventCall
 from constants import (
     ERC20_EVENT_SIGNATURES,
-    ERC20_FX_SIGNATURES, ERC20_GETTERS,
-    ERC20_EVENT_BY_FUNCTION
+    ERC20_FX_SIGNATURES,
+    ERC20_GETTERS,
+    ERC20_EVENT_BY_FX,
+    ALLOWANCE_FRONTRUN_FX_SIGNATURES,
+    ALLOWANCE_FRONTRUN_EVENT_BY_FX
 )
 from log import (
     log_matches,
@@ -85,34 +88,37 @@ def verify_getters(state_variables, functions, expected_getters):
             yield (getter, False)
 
 
-def verify_erc20_event_calls(function_matches):
+def verify_event_calls(erc20_fx_matches, events_by_function):
     """
-    Checks if ERC20 functions found emit the expected ERC20 events
+    Checks if functions found emit the expected given events
 
     Parameters
     ----------
-    function_matches : list
+    erc20_fx_matches : list
         List of tuples (Signature, slither.core.declarations.Function or None)
 
+    events_by_function: dict
+        Dict containing function's name as key,
+        and event's Signature as value (i.e. {function_name: Signature})
     Returns
     -------
     generator
         Generator of tuples (Signature, bool)
     """
-    for match in function_matches:
+    for match in erc20_fx_matches:
         # Check if function was found and function is expected to emit event
         function = match[1]
-        if function and ERC20_EVENT_BY_FUNCTION[match[0].name]:
-            yield (match[0], emits_event(function, ERC20_EVENT_BY_FUNCTION[function.name]))
+        if function and events_by_function[match[0].name]:
+            yield (match[0], emits_event(function, events_by_function[function.name]))
 
 
-def verify_custom_modifiers(function_matches):
+def verify_custom_modifiers(erc20_fx_matches):
     """
     Checks if ERC20 functions found have any custom modifier
 
     Parameters
     ----------
-    function_matches : list
+    erc20_fx_matches : list
         List of tuples (Signature, slither.core.declarations.Function or None)
 
     Returns
@@ -120,7 +126,7 @@ def verify_custom_modifiers(function_matches):
     generator
         Generator of tuples (Signature, list(slither.core.declarations.Modifier))
     """
-    for match in function_matches:
+    for match in erc20_fx_matches:
         # Check whether function was found and has modifiers
         function = match[1]
         if function and function.modifiers:
@@ -213,14 +219,6 @@ def emits_event(function, expected_event):
     return False
 
 
-def approve_checks_balance(contract):
-    # Get approve signature, removing all whitespaces
-    approve_signature = ERC20_FX_SIGNATURES[1].to_string(with_return=False).replace(' ', '')
-    function = contract.get_function_from_signature(approve_signature)
-    if function:
-        pass
-
-
 def run(filename, contract_name):
     """Executes script"""
 
@@ -236,35 +234,43 @@ def run(filename, contract_name):
     # Obtain visible functions
     visible_functions = get_visible_functions(contract.functions)
 
-    # Check signature matches for functions and events
-    function_matches = verify_signatures(visible_functions, ERC20_FX_SIGNATURES)
-    event_definition_matches = verify_signatures(contract.events, ERC20_EVENT_SIGNATURES)
+    erc20_fx_matches = verify_signatures(visible_functions, ERC20_FX_SIGNATURES)
 
     print("== ERC20 functions definition ==")
-    log_matches(function_matches)
+    log_matches(erc20_fx_matches)
 
     print("\n== Custom modifiers ==")
     log_modifiers_per_function(
-        verify_custom_modifiers(function_matches)
+        verify_custom_modifiers(erc20_fx_matches)
     )
-
-    approve_checks_balance(contract)
 
     print("\n== ERC20 events ==")
-    log_matches(event_definition_matches, log_return=False)
+    log_matches(
+        verify_signatures(contract.events, ERC20_EVENT_SIGNATURES),
+        log_return=False
+    )
     log_event_per_function(
-        verify_erc20_event_calls(function_matches),
-        ERC20_EVENT_BY_FUNCTION
+        verify_event_calls(erc20_fx_matches, ERC20_EVENT_BY_FX),
+        ERC20_EVENT_BY_FX
     )
 
-    getters_matches = verify_getters(
-        contract.state_variables,
-        visible_functions,
-        ERC20_GETTERS
-    )
     print("\n== ERC20 getters ==")
-    log_matches(getters_matches)
+    log_matches(
+        verify_getters(
+            contract.state_variables,
+            visible_functions,
+            ERC20_GETTERS
+        )
+    )
 
+    print("\n== Allowance frontrunning mitigation ==")
+    frontrun_fx_matches = verify_signatures(visible_functions, ALLOWANCE_FRONTRUN_FX_SIGNATURES)
+    log_matches(frontrun_fx_matches)
+    log_event_per_function(
+        verify_event_calls(frontrun_fx_matches, ALLOWANCE_FRONTRUN_EVENT_BY_FX),
+        ALLOWANCE_FRONTRUN_EVENT_BY_FX,
+        must=False
+    )
 
 if __name__ == "__main__":
     if len(sys.argv) != 3:

@@ -10,8 +10,10 @@ def log_matches(matches, log_return=True):
         print(f"[{mark}] {match[0].to_string(log_return)}")
 
 
-def log_event_per_function(matches, expected_events):
+def log_event_per_function(matches, expected_events, must=True):
     """
+    Prints "<function-name> must emit <event-signature>"
+
     Parameters
     ----------
     matches : iterable
@@ -23,7 +25,7 @@ def log_event_per_function(matches, expected_events):
         function_name = match[0].name
         expected_event = expected_events[function_name].to_string(with_return=False)
         mark = '\u2713' if match[1] else 'x'
-        print(f"[{mark}] {function_name} must emit {expected_event}")
+        print(f"[{mark}] {function_name} {'must emit' if must else 'emits'} {expected_event}")
 
 
 def log_modifiers_per_function(matches):
