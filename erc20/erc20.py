@@ -39,32 +39,12 @@ def is_public(element):
     return element.visibility == "public"
 
 
-def find_match(elements, signature):
-    """
-    Check whether a signature is found in a list of elements
-
-    Parameters
-    ----------
-    elements : list
-        List of slither.core.declarations.Event or slither.core.declarations.Function
-
-    signature : Signature
-
-    Returns
-    -------
-    slither.core.declarations.Event or slither.core.declarations.Function
-        Element that matches the signature
-    None otherwise.
-    """
-    return next((e for e in elements if e.signature == signature), None)
-
-
 def verify_signatures(elements, expected_signatures):
     """
     Compares a list of elements (functions or events) and expected signatures.
     Returns a list of tuples containing (Signature, matching object or None)
     """
-    return [(sig, find_match(elements, sig)) for sig in expected_signatures]
+    return [(sig, sig.find_match(elements)) for sig in expected_signatures]
 
 
 def verify_getters(state_variables, functions, expected_getters):
@@ -76,9 +56,9 @@ def verify_getters(state_variables, functions, expected_getters):
     ----------
     state_variables : list
 
-    functions : list
+    functions : list(slither.core.declarations.Function)
 
-    expected_getters : list
+    expected_getters : list(Signature)
 
     Returns
     -------
@@ -88,7 +68,7 @@ def verify_getters(state_variables, functions, expected_getters):
         # Check in state variables. If none is found, check in functions.
         if (
             any(name_and_return_match(v, getter) and is_public(v) for v in state_variables) or
-            find_match(functions, getter)
+            getter.find_match(functions)
         ):
             yield (getter, True)
         else:
@@ -164,8 +144,7 @@ def get_visible_functions(functions):
 
     Parameters
     ----------
-    functions : list
-        List of slither.core.declarations.Function
+    functions : list(slither.core.declarations.Function)
 
     Returns
     -------
