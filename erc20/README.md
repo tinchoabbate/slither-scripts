@@ -52,8 +52,8 @@ $ python erc20.py test/ERC20.sol ERC20
 [✓] decreaseAllowance emits Approval (address, address, uint256)
 
 == Balance check in approve function ==
-[x] approve function may be checking for sender's balance
+[✓] approve function should not check for sender's balance
 ~~~
 
 ## Limitations
-Bear in mind that, currently, the script _does not verify_ that the functions found behave as expected. It just checks for matching signatures, return types, existence of custom modifiers, and event emissions. You still have to manually (or dynamically) test the functions to make sure they are doing the right thing.
+Bear in mind that, currently, the script _does not verify_ that the functions found behave as expected. It just checks for matching signatures, return types, existence of custom modifiers, event emissions, among others. You still have to manually (or dynamically) test the functions to make sure they are doing the right thing.

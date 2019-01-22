@@ -93,10 +93,6 @@ contract ERC20 is IERC20 {
      */
     function approve(address spender, uint256 value) public returns (bool) {
         require(spender != address(0));
-        
-        // The following line was intentionally added to test a script functionality
-        // and DOES NOT BELONG TO THE ORIGINAL OpenZeppelin contract.
-        require (_balances[msg.sender] != value);
 
         _allowed[msg.sender][spender] = value;
         emit Approval(msg.sender, spender, value);

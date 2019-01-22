@@ -1,4 +1,4 @@
-#!/usr/bin/python3
+#!/usr/bin/env python3
 import sys
 import collections
 from slither.slither import Slither
@@ -19,7 +19,8 @@ from constants import (
 from log import (
     log_matches,
     log_event_per_function,
-    log_modifiers_per_function
+    log_modifiers_per_function,
+    log_approve_checking_balance
 )
 
 
@@ -225,6 +226,64 @@ def emits_event(function, expected_event):
     return False
 
 
+def local_var_is_sender(local_variable):
+    """
+    Returns True if the passed local variable's value is the msg.sender address,
+    recursively checking for previous assignments. Returns False otherwise.
+
+    Parameters
+    ----------
+    local_variable : slither.core.declarations.solidity_variables.SolidityVariableComposed
+
+    Returns
+    -------
+    bool
+    """
+    
+    if local_variable.name == 'msg.sender':
+        return True
+    else:
+        try:
+            # Recursively check for msg.sender assignment
+            return local_var_is_sender(local_variable.expression.value)
+        except AttributeError:
+            return False
+
+
+def checks_sender_balance_in_require(node):
+    """
+    Verifies if a state mapping is being accessed with msg.sender index
+    inside a require statement and compared to another value, in the given node.
+    Returns True if it finds such operation. False otherwise.
+
+    Parameters
+    ----------
+    node : slither.solc_parsing.cfg.node.NodeSolc
+
+    Returns
+    -------
+    bool
+    """
+    # First check we're in a require clause
+    if any(call.name == 'require(bool)' for call in node.internal_calls):
+
+        # Now check that the operations done in the node are the expected
+        expected_operations = {IndexOperation, BinaryOperation, SolidityCallOperation}
+        if len(node.irs) == len(expected_operations) and {type(ir) for ir in node.irs} == expected_operations:
+            for ir in node.irs:
+                # Verify that a state mapping is being accessed with msg.sender index
+                if isinstance(ir, IndexOperation):
+                    reading_mapping_in_state = (
+                        isinstance(ir.variable_left, StateVariableSolc) and
+                        isinstance(ir.variable_left.type, MappingType)
+                    )
+                    index_is_sender = local_var_is_sender(ir.variable_right)
+                    if reading_mapping_in_state and index_is_sender:
+                        return True                
+
+    return False
+
+
 def run(filename, contract_name):
     """Executes script"""
 
@@ -235,6 +294,7 @@ def run(filename, contract_name):
     contract = slither.get_contract_from_name(contract_name)
     if not contract:
         print(f"Contract {contract_name} not found")
+        print("Either you mispelled the contract's name or solc cannot compile the contract.")
         exit(-1)
 
     # Obtain visible functions
@@ -282,41 +342,8 @@ def run(filename, contract_name):
     print("\n== Balance check in approve function ==")
     approve_signature = ERC20_FX_SIGNATURES[1].to_string(with_return=False, with_spaces=False)
     approve_function = contract.get_function_from_signature(approve_signature)
-    if any(checks_sender_balance(node) for node in approve_function.nodes):
-        # TODO: move this print to logging module        
-        print("[x] approve function may be checking for sender's balance")
-        
-
-def local_is_sender(local_variable):
-    if local_variable.name == 'msg.sender':
-        return True
-    else:
-        try:
-            # Recursively check for msg.sender assignment
-            return local_is_sender(local_variable.expression.value)
-        except AttributeError:
-            return False
-
-
-def checks_sender_balance(node):
-    # First check we're in a require clause
-    if any(call.name == 'require(bool)' for call in node.internal_calls):
-
-        # Now check that the operations done are the expected
-        expected_operations = {IndexOperation, BinaryOperation, SolidityCallOperation}
-        if len(node.irs) == len(expected_operations) and {type(ir) for ir in node.irs} == expected_operations:
-            for ir in node.irs:
-                # Verify that a state mapping is being accessed with msg.sender index
-                if isinstance(ir, IndexOperation):
-                    reading_mapping_in_state = (
-                        isinstance(ir.variable_left, StateVariableSolc) and
-                        isinstance(ir.variable_left.type, MappingType)
-                    )
-                    index_is_sender = local_is_sender(ir.variable_right)
-                    if reading_mapping_in_state and index_is_sender:
-                        return True                
-
-    return False
+    is_checking_balance = any(checks_sender_balance_in_require(node) for node in approve_function.nodes)
+    log_approve_checking_balance(is_checking_balance)        
 
 
 if __name__ == "__main__":

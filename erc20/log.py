@@ -43,3 +43,13 @@ def log_modifiers_per_function(matches):
         printed = True
     if not printed:
         print("[\u2713] No custom modifiers in ERC20 functions")
+
+
+def log_approve_checking_balance(is_checking_balance):
+    """
+    Parameters
+    ----------
+    is_checking_balance : bool
+    """
+    mark = "x" if is_checking_balance else "\u2713"
+    print(f"[{mark}] approve function should not check for sender's balance")
