@@ -38,6 +38,10 @@ def is_public(element):
     """Check if element's (Function or Event) visibility is public"""
     return element.visibility == "public"
 
+def is_interface(contract):
+    """Check if contract is interface"""
+    return contract.contract_kind == "interface"
+
 
 def verify_signatures(elements, expected_signatures):
     """
@@ -148,9 +152,24 @@ def get_visible_functions(functions):
 
     Returns
     -------
-    list
+    list(slither.core.declarations.Function)
     """
     return [f for f in functions if is_visible(f)]
+
+
+def get_implemented_functions(functions):
+    """
+    Filters a list of functions, keeping those whose declaring contract is NOT an interface
+
+    Parameters
+    ----------
+    functions : list(slither.core.declarations.Function)
+
+    Returns
+    -------
+    list(slither.core.declarations.Function)
+    """
+    return [f for f in functions if not is_interface(f.contract_declarer)]
 
 
 def is_event_call(obj):
@@ -276,8 +295,10 @@ def run(filename, contract_name):
         print("Either you mispelled the contract's name or solc cannot compile the contract.")
         exit(-1)
 
-    # Obtain visible functions
-    visible_functions = get_visible_functions(contract.functions)
+    # Obtain all visible functions, filtering out any that comes from an interface contract
+    visible_functions = get_visible_functions(
+        get_implemented_functions(contract.functions)
+    )
 
     erc20_fx_matches = verify_signatures(visible_functions, ERC20_FX_SIGNATURES)
 
