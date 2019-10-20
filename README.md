@@ -5,12 +5,12 @@
 
 ## Requirements
 - [Python 3](https://www.python.org/downloads/)
-- [Slither](https://github.com/trailofbits/slither)
 
 ## Install
-1. Clone this repository
-2. `cd slither-scripts`
-3. `pip3 install -r requirements.txt`
+1. `pip3 install -r requirements.txt`
+
+## Usage
+Find specific usage instructions in each script folder.
 
 ## Maintainers
 [@tinchoabbate](https://github.com/tinchoabbate)
